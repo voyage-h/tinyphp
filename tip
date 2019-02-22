@@ -1,0 +1,213 @@
+#!/usr/bin/env php
+<?php
+
+define('APP_PATH',__DIR__);
+require APP_PATH.'/vendor/Autoload.php';
+
+list($command, $option) = explode(':', $argv[1]);
+$param = $argv[2] ?? '';
+
+$create = function($example, $contents) use ($option, $param) {
+    if (empty($param)) {
+        $usage = <<<EOT
+Usage:
+  php tip create:$option [name]
+
+Example:
+  php tip create:$option $example
+
+
+EOT;
+        exit($usage);
+    }
+    $filename = APP_PATH."/app/{$option}s/$param.php";
+
+    if (file_exists($filename)) {
+        fwrite(STDOUT, "{$param} 已经存在，是否覆盖(y/n): ");
+        if (strtolower(trim(fgets(STDIN))) != 'y')
+            exit;
+        
+    }
+    file_put_contents($filename, $contents);
+    echo "$param created success\n";
+};
+switch($command) {
+    case 'create':
+        switch($option) {
+            case 'controller':
+                $example = 'IndexController';
+                $contents = <<<EOT
+<?php
+
+namespace Controller;
+
+use Core\Controller;
+
+class $param extends Controller
+{
+    public function init()
+    {
+        //do something before each action
+        //acting each time
+    }
+
+    public function __construct()
+    {
+        //do something only before the first action 
+        //acting once
+    }
+}
+EOT;
+                $create($example, $contents);
+                break;
+            case 'model':
+                $example = 'User';
+                $contents = <<<EOT
+<?php
+
+namespace Model;
+
+use Core\Tipent;
+
+class $param extends Tipent
+{
+}
+EOT;
+                $create($example, $contents);
+                break;
+            case 'plugin':
+                $example = 'UserPlugin';
+                $contents = <<<EOT
+<?php
+
+namespace Plugin;
+
+use Core\Plugin;
+
+class $param extends Plugin
+{
+    public function routerStartup()
+    {
+        //action before router start up
+    }
+
+    public function routerShutdown()
+    {
+        //action after router shut down
+    }
+}
+EOT;
+                $create($example, $contents);
+                break;
+            case 'migration':
+                $example = 'UsersTable';
+                if ('Table' != substr($param, -5)) {
+                    exit("ClassName must end up with Table");
+                }
+                $table = strtolower(substr($param, 0, -5));
+                $contents = <<<EOT
+<?php
+
+namespace Migration;
+
+use Core\Table;
+
+class $param extends Table
+{
+    protected function up()
+    {
+        Table::create('$table', function() {
+            \$this->primaryKey('id');
+        });
+    }
+}
+
+EOT;
+                $create($example, $contents);
+                break;
+            default:
+                $usage = <<<EOT
+Usage:
+  php tip create:controller [name]
+  php tip create:model [name]
+  php tip create:plugin [name]
+  php tip create:migration [name]
+
+
+EOT;
+                exit($usage);
+        }
+        break;
+    case 'migrate':
+        if (in_array($argv[2],['-h', '--help'])) {
+            $usage = <<<EOT
+Usage:
+  php tip migrate [Options]
+
+Options:
+  [-h | --help]         show migrate usage
+  [-f | --force]        recreate all tables
+  [-d | --data]         insert table with datas
+  [--table=someTable]   only migrate defined table
+
+
+EOT;
+            exit($usage);
+        }
+        $ops = array_slice($argv, 2);
+
+        $force = $seed = $class = 0;
+        foreach($ops as $op) {
+            if (!$force) {
+                $force = in_array($op, ['-f', '--force']) ? 1 : 0;
+            }
+            if (!$seed) {
+                $seed = in_array($op, ['-d', '--data']) ? 1 : 0;
+            }
+            if (!$class) {
+                if (substr($op, 0, 7) == '--table') {
+                    $class = explode('=', $op)[1];
+                    if (empty($class)) {
+                        exit("Table name can't be empty");
+                    }
+                }
+            }
+        }
+        if (!empty($class)) {
+            $files = [$class];
+        } else {
+            $files = scandir(APP_PATH.'/app/migrations');
+        }
+
+        foreach($files as $file) {
+            if (substr($file, 0, 1) == '.') {
+                continue;
+            }
+            $arr = explode('.', $file);
+            $class = 'Migration\\'.ucfirst($arr[0]);
+            if ($force) {
+                $class::dropTable();
+            }
+            $class::up();
+            if ($seed && method_exists($class, 'data')) {
+                $class::data();
+            }
+        }
+        break;
+
+
+    default:
+        $usage = <<<EOT
+Usage:
+  php tip create:controller [name]
+  php tip create:model [name]
+  php tip create:plugin [name]
+  php tip create:migration [name]
+
+  php tip migrate
+
+
+EOT;
+        exit($usage);
+}
+

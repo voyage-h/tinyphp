@@ -1,0 +1,27 @@
+{
+  "name" : "tinyphp",
+  "description" : "a tiny php framework",
+  "require" : {
+    "predis/predis": "^v1.0",
+    "chrisboulton/php-resque": "1.2.x"
+  },
+  "license" : "MIT",
+  "autoload" : {
+    "psr-4" : {
+      "Core\\" : "core/",
+      "App\\" : "app/",
+      "Controller\\" : "app/controllers/",
+      "Model\\" : "app/models/",
+      "Plugin\\" : "app/plugins/",
+      "View\\" : "app/views",
+      "Dispatcher\\" : "core/dispatcher",
+      "Test\\" : "tests",
+      "Helper\\" : "core/helper/",
+      "Library\\" : "app/library/",
+      "Migration\\": "app/migrations/"
+    }
+  },
+  "authors" : [ {
+    "name" : "Zhanghang"
+  } ]
+}
